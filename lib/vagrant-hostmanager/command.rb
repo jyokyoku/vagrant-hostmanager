@@ -19,24 +19,37 @@ module VagrantPlugins
             'Update machines with the specific provider.') do |provider|
             options[:provider] = provider.to_sym
           end
+
+          o.on('--cleanhost', 'Clean up the /etc/hosts for host machine.') do |provider|
+            options[:cleanhost] = true
+          end
         end
 
         argv = parse_options(opts)
-        options[:provider] ||= @env.default_provider
 
-        # update /etc/hosts file for specified guest machines
-        with_target_vms(argv, options) do |machine|
-          @env.action_runner.run(Action.update_guest, {
-            :machine => machine,
+        if options[:cleanhost]
+          @env.action_runner.run(Action.update_host, {
+            :global_env => @env,
+            :provider => options[:provider],
+            :cleanhost => true
+          })
+        else
+          options[:provider] ||= @env.default_provider
+
+          # update /etc/hosts file for specified guest machines
+          with_target_vms(argv, options) do |machine|
+            @env.action_runner.run(Action.update_guest, {
+              :machine => machine,
+              :provider => options[:provider]
+            })
+          end
+
+          # update /etc/hosts file for host
+          @env.action_runner.run(Action.update_host, {
+            :global_env => @env,
             :provider => options[:provider]
           })
         end
-
-        # update /etc/hosts file for host
-        @env.action_runner.run(Action.update_host, {
-          :global_env => @env,
-          :provider => options[:provider]
-        })
       end
     end
   end

@@ -46,7 +46,7 @@ module VagrantPlugins
           end
         end
 
-        def update_host
+        def update_host(clear = false)
           # copy and modify hosts file on host with Vagrant-managed entries
           file = @global_env.tmp_path.join('hosts.local')
 
@@ -64,9 +64,29 @@ module VagrantPlugins
           end
 
           FileUtils.cp(hosts_location, file)
-          if update_file(file)
-            copy_proc.call
+
+          if clear
+            if clear_file(file)
+              copy_proc.call
+            end
+          else
+            if update_file(file)
+              copy_proc.call
+            end
           end
+        end
+
+        def clear_file(file)
+          file = Pathname.new(file)
+          old_file_content = file.read
+
+          header_pattern = "## vagrant-hostmanager-start.*?\n"
+          footer_pattern = "## vagrant-hostmanager-end\n"
+          pattern = Regexp.new("\n*#{header_pattern}.*?#{footer_pattern}\n*", Regexp::MULTILINE)
+          new_file_content = old_file_content.gsub(pattern, '')
+
+          file.open('w') { |io| io.write(new_file_content) }
+          old_file_content != new_file_content
         end
 
         private

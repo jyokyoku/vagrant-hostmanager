@@ -12,6 +12,7 @@ module VagrantPlugins
           global_env = env[:global_env]
           @config = Util.get_config(global_env)
           @updater = HostsFile::Updater.new(global_env, env[:provider])
+          @cleanhost = env[:cleanhost]
           
           @logger = Log4r::Logger.new('vagrant::hostmanager::update_host')
         end
@@ -20,6 +21,8 @@ module VagrantPlugins
           if @config.hostmanager.manage_host?
             env[:ui].info I18n.t('vagrant_hostmanager.action.update_host')
             @updater.update_host
+          elsif @cleanhost
+            @updater.update_host(true)
           end
 
           @app.call(env)
