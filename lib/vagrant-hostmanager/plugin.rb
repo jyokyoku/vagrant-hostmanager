@@ -20,6 +20,10 @@ module VagrantPlugins
         hook.after(Vagrant::Action::Builtin::Provision, Action.update_all)
       end
 
+      action_hook(:hostmanager, :machine_action_reload) do |hook|
+        hook.after(Vagrant::Action::Builtin::Provision, Action.update_all)
+      end
+
       action_hook(:hostmanager, :machine_action_destroy) do |hook|
         hook.prepend(Action.update_all)
       end
