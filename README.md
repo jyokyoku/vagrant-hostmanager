@@ -1,21 +1,12 @@
 Vagrant Host Manager
 ====================
-`vagrant-hostmanager` is a Vagrant 1.1+ plugin that manages the `/etc/hosts`
-file on guest machines (and optionally the host). Its goal is to enable
-resolution of multi-machine environments deployed with a cloud provider
-where IP addresses are not known in advance.
 
-*NOTE:* Version 1.1 of the plugin prematurely introduced a feature to hook into
-commands other than `vagrant up` and `vagrant destroy`. Version 1.1 broke support
-for some providers. Version 1.2 reverts this feature until a suitable implementation
-supporting all providers is available.
+[![Gem](https://img.shields.io/gem/v/vagrant-hostmanager.svg)](https://rubygems.org/gems/vagrant-hostmanager)
+[![Gem](https://img.shields.io/gem/dt/vagrant-hostmanager.svg)](https://rubygems.org/gems/vagrant-hostmanager)
+[![Gem](https://img.shields.io/gem/dtv/vagrant-hostmanager.svg)](https://rubygems.org/gems/vagrant-hostmanager)
+[![Twitter](https://img.shields.io/twitter/url/https/github.com/devopsgroup-io/vagrant-hostmanager.svg?style=social)](https://twitter.com/intent/tweet?text=Check%20out%20this%20awesome%20Vagrant%20plugin%21&url=https%3A%2F%2Fgithub.com%devopsgroup-io%2Fvagrant-hostmanager&hashtags=vagrant%hostmanager&original_referer=)
 
-***Potentially breaking change in v1.5.0:*** the running order on `vagrant up` has changed
-so that hostmanager runs before provisioning takes place.  This ensures all hostnames are 
-available to the guest when it is being provisioned 
-(see [#73](https://github.com/smdahlen/vagrant-hostmanager/issues/73)).
-Previously, hostmanager would run as the very last action.  If you depend on the old behavior, 
-see the [provisioner](#provisioner) section.
+`vagrant-hostmanager` is a plugin that manages the `hosts` file on guest machines (and optionally the host). Its goal is to enable resolution of multi-machine environments deployed with a cloud provider where IP addresses are not known in advance.
 
 Installation
 ------------
@@ -25,7 +16,7 @@ Install the plugin following the typical Vagrant 1.1 procedure:
 
 Usage
 -----
-To update the `/etc/hosts` file on each active machine, run the following
+To update the `hosts` file on each active machine, run the following
 command:
 
     $ vagrant hostmanager
@@ -33,11 +24,14 @@ command:
 The plugin hooks into the `vagrant up` and `vagrant destroy` commands
 automatically.
 When a machine enters or exits the running state , all active
-machines with the same provider will have their `/etc/hosts` file updated
+machines with the same provider will have their `hosts` file updated
 accordingly. Set the `hostmanager.enabled` attribute to `true` in the
 Vagrantfile to activate this behavior.
 
-To update the host's `/etc/hosts` file, set the `hostmanager.manage_host`
+To update the host's `hosts` file, set the `hostmanager.manage_host`
+attribute to `true`.
+
+To update the guests' `hosts` file, set the `hostmanager.manage_guest`
 attribute to `true`.
 
 A machine's IP address is defined by either the static IP for a private
@@ -60,6 +54,7 @@ Example configuration:
 Vagrant.configure("2") do |config|
   config.hostmanager.enabled = true
   config.hostmanager.manage_host = true
+  config.hostmanager.manage_guest = true
   config.hostmanager.ignore_private_ip = false
   config.hostmanager.include_offline = true
   config.vm.define 'example-box' do |node|
@@ -95,14 +90,14 @@ config.vm.provision :hostmanager
 Custom IP resolver
 ------------------
 
-You can customize way, how host manager resolves IP address
-for each machine. This might be handy in case of aws provider,
-where host name is stored in ssh_info hash of each machine.
-This causes generation of invalid /etc/hosts file.
+You can customize how vagrant-hostmanager resolves IP address
+for each machine. This might be handy in the case of the AWS provider,
+where the host name is stored in the ssh_info hash of each machine.
+This causes a generation of an invalid `hosts` file.
 
-Custom IP resolver gives you oportunity to calculate IP address
-for each machine by yourself, giving You also access to the machine that is
-updating /etc/hosts. For example:
+A custom IP resolver gives you the oportunity to calculate IP address
+for each machine by yourself, giving you access to the machine that is
+updating `hosts`. For example:
 
 ```ruby
 config.hostmanager.ip_resolver = proc do |vm, resolving_vm|
@@ -115,13 +110,31 @@ end
 Passwordless sudo
 -----------------
 
-Add  the  following snippet  to  the  sudoers  file (for  example,  to
-```/etc/sudoers.d/vagrant_hostmanager```)  to  make   it  stop  asking
-password when updating hosts  file (replace ```/home/user``` with your
-actual home directory):
+To avoid being asked for the password every time the hosts file is updated,
+enable passwordless sudo for the specific command that hostmanager uses to
+update the hosts file.
 
-    Cmnd_Alias VAGRANT_HOSTMANAGER_UPDATE = /bin/cp /home/user/.vagrant.d/tmp/hosts.local /etc/hosts
-    %sudo ALL=(root) NOPASSWD: VAGRANT_HOSTMANAGER_UPDATE
+  - Add the following snippet to the sudoers file (e.g.
+    `/etc/sudoers.d/vagrant_hostmanager`):
+
+    ```
+    Cmnd_Alias VAGRANT_HOSTMANAGER_UPDATE = /bin/cp <home-directory>/.vagrant.d/tmp/hosts.local /etc/hosts
+    %<admin-group> ALL=(root) NOPASSWD: VAGRANT_HOSTMANAGER_UPDATE
+    ```
+
+    Replace `<home-directory>` with your actual home directory (e.g.
+    `/home/joe`) and `<admin-group>` with the group that is used by the system
+    for sudo access (usually `sudo` on Debian/Ubuntu systems and `wheel`
+    on Fedora/Red Hat systems).
+
+  - If necessary, add yourself to the `<admin-group>`:
+
+    ```
+    usermod -aG <admin-group> <user-name>
+    ```
+
+    Replace `<admin-group>` with the group that is used by the system for sudo
+    access (see above) and `<user-name>` with you user name.
 
 Windows support
 ---------------
@@ -134,30 +147,78 @@ elevated privileges. If hostmanager detects that it cannot overwrite the file,
 it will attempt to do so with elevated privileges, causing the
 [UAC](http://en.wikipedia.org/wiki/User_Account_Control) prompt to appear.
 
+To avoid the UAC prompt, open ```%WINDIR%\System32\drivers\etc\``` in
+Explorer, right-click the hosts file, go to Properties > Security > Edit
+and give your user Modify permission.
+
 ### UAC limitations
 
 Due to limitations caused by UAC, cancelling out of the UAC prompt will not cause any
 visible errors, however the ```hosts``` file will not be updated.
 
-Installing development version
-------------------------------
 
-If you want to install the bleeding version of vagrant-hostmanager (*at your own risk*), you can do the following
-(requires ruby and git):
+Compatibility
+-------------
+This Vagrant plugin has been tested with the following technology.
 
-```
-git clone https://github.com/smdahlen/vagrant-hostmanager.git
-cd vagrant-hostmanager
-rake gem:build
-vagrant plugin install pkg/vagrant-hostmanager-*.gem
-```
+Date Tested | Vagrant Version | vagrant-hostmanager Version | Host (Workstation) Operating System | Guest (VirtualBox) Operating System
+------------|-----------------|-----------------------------|-------------------------------------|--------------------------------------
+03/23/2016  | 1.8.1           | 1.8.1                       | Ubuntu 14.04 LTS                    | CentOS 7.2
+03/22/2016  | 1.8.1           | 1.8.1                       | OS X 10.11.4                        | CentOS 7.2
+
+
+Troubleshooting
+-------------
+* Version 1.1 of the plugin prematurely introduced a feature to hook into
+commands other than `vagrant up` and `vagrant destroy`. Version 1.1 broke support
+for some providers. Version 1.2 reverts this feature until a suitable implementation
+supporting all providers is available.
+
+* Potentially breaking change in v1.5.0: the running order on `vagrant up` has changed
+so that hostmanager runs before provisioning takes place.  This ensures all hostnames are 
+available to the guest when it is being provisioned 
+(see [#73](https://github.com/devopsgroup-io/vagrant-hostmanager/issues/73)).
+Previously, hostmanager would run as the very last action.  If you depend on the old behavior, 
+see the [provisioner](#provisioner) section.
+
 
 Contribute
 ----------
-Contributions are welcome.
+To contribute, fork then clone the repository, and then the following:
 
-1. Fork it
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create new Pull Request
+**Developing**
+
+1. Install [Bundler](http://bundler.io/)
+2. Currently the Bundler version is locked to 1.6.9, please install this version.
+    * `sudo gem install bundler -v '1.6.9'`
+3. Then install vagrant-hostmanager dependancies:
+    * `bundle _1.6.9_ install`
+
+**Testing**
+
+1. Build and package your newly developed code:
+    * `rake gem:build`
+2. Then install the packaged plugin:
+    * `vagrant plugin install pkg/vagrant-hostmanager-*.gem`
+3. Once you're done testing, roll-back to the latest released version:
+    * `vagrant plugin uninstall vagrant-hostmanager`
+    * `vagrant plugin install vagrant-hostmanager`
+4. Once you're satisfied developing and testing your new code, please submit a pull request for review.
+
+**Releasing**
+
+To release a new version of vagrant-hostmanager you will need to do the following:
+
+*(only contributors of the GitHub repo and owners of the project at RubyGems will have rights to do this)*
+
+1. First, bump the version in ~/lib/vagrant-hostmanager/version.rb:
+    * Follow [Semantic Versioning](http://semver.org/).
+2. Then, create a matching GitHub Release (this will also create a tag):
+    * Preface the version number with a `v`.
+    * https://github.com/devopsgroup-io/vagrant-hostmanager/releases
+3. You will then need to build and push the new gem to RubyGems:
+    * `rake gem:build`
+    * `gem push pkg/vagrant-hostmanager-1.6.1.gem`
+4. Then, when John Doe runs the following, they will receive the updated vagrant-hostmanager plugin:
+    * `vagrant plugin update`
+    * `vagrant plugin update vagrant-hostmanager`

@@ -4,7 +4,7 @@ module VagrantPlugins
 
       # Show description when `vagrant list-commands` is triggered
       def self.synopsis
-        "manages the /etc/hosts file within a multi-machine environment"
+        "plugin: vagrant-hostmanager: manages the /etc/hosts file within a multi-machine environment"
       end
 
       def execute
@@ -20,7 +20,7 @@ module VagrantPlugins
             options[:provider] = provider.to_sym
           end
 
-          o.on('--cleanhost', 'Clean up the /etc/hosts for host machine.') do |provider|
+          o.on('--cleanhost', 'Clean up the /etc/hosts for host machine.') do
             options[:cleanhost] = true
           end
         end
@@ -39,6 +39,7 @@ module VagrantPlugins
           # update /etc/hosts file for specified guest machines
           with_target_vms(argv, options) do |machine|
             @env.action_runner.run(Action.update_guest, {
+              :global_env => @env,
               :machine => machine,
               :provider => options[:provider]
             })

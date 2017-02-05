@@ -10,6 +10,8 @@ module VagrantPlugins
           @global_env = global_env
           @config = Util.get_config(@global_env)
           @provider = provider
+          @logger = Log4r::Logger.new('vagrant::hostmanager::updater')
+          @logger.debug("init updater")
         end
 
         def update_guest(machine)
@@ -17,33 +19,33 @@ module VagrantPlugins
 
           if (machine.communicate.test("uname -s | grep SunOS"))
             realhostfile = '/etc/inet/hosts'
-            move_cmd = 'mv'
           elsif (machine.communicate.test("test -d $Env:SystemRoot"))
             windir = ""
             machine.communicate.execute("echo %SYSTEMROOT%", {:shell => :cmd}) do |type, contents|
               windir << contents.gsub("\r\n", '') if type == :stdout
             end
             realhostfile = "#{windir}\\System32\\drivers\\etc\\hosts"
-            move_cmd = 'mv -force'
           else
             realhostfile = '/etc/hosts'
-            move_cmd = 'mv -f'
           end
           # download and modify file with Vagrant-managed entries
           file = @global_env.tmp_path.join("hosts.#{machine.name}")
           machine.communicate.download(realhostfile, file)
+
+          @logger.debug("file is: #{file.to_s}")
+          @logger.debug("class of file is: #{file.class}")
+
           if update_file(file, machine, false)
 
             # upload modified file and remove temporary file
-            machine.communicate.upload(file, '/tmp/hosts')
-            machine.communicate.sudo("#{move_cmd} /tmp/hosts #{realhostfile}")
+            machine.communicate.upload(file.to_s, '/tmp/hosts')
+            if windir
+              machine.communicate.sudo("mv -force /tmp/hosts/hosts.#{machine.name} #{realhostfile}")
+            else
+              machine.communicate.sudo("cat /tmp/hosts > #{realhostfile}")
+            end
           end
 
-          # i have no idea if this is a windows competibility issue or not, but sometimes it dosen't work on my machine
-          begin
-            FileUtils.rm(file)
-          rescue Exception => e
-          end
         end
 
         def update_host(clear = false)
@@ -60,7 +62,7 @@ module VagrantPlugins
             copy_proc = Proc.new { windows_copy_file(file, hosts_location) }
           else
             hosts_location = '/etc/hosts'
-            copy_proc = Proc.new { `sudo cp #{file} #{hosts_location}` }
+            copy_proc = Proc.new { `[ -w #{hosts_location} ] && cat #{file} > #{hosts_location} || sudo cp #{file} #{hosts_location}` }
           end
 
           FileUtils.cp(hosts_location, file)
@@ -95,7 +97,7 @@ module VagrantPlugins
           file = Pathname.new(file)
           old_file_content = file.read
           new_file_content = update_content(old_file_content, resolving_machine, include_id)
-          file.open('w') { |io| io.write(new_file_content) }
+          file.open('wb') { |io| io.write(new_file_content) }
           old_file_content != new_file_content
         end
 
