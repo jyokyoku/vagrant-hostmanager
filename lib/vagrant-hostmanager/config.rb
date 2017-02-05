@@ -7,6 +7,7 @@ module VagrantPlugins
       attr_accessor :aliases
       attr_accessor :include_offline
       attr_accessor :ip_resolver
+      attr_accessor :ipv6_resolver
 
       alias_method :enabled?, :enabled
       alias_method :include_offline?, :include_offline
@@ -19,6 +20,7 @@ module VagrantPlugins
         @include_offline    = UNSET_VALUE
         @aliases            = UNSET_VALUE
         @ip_resolver        = UNSET_VALUE
+        @ipv6_resolver      = UNSET_VALUE
       end
 
       def finalize!
@@ -28,6 +30,7 @@ module VagrantPlugins
         @include_offline    = false if @include_offline == UNSET_VALUE
         @aliases            = [] if @aliases == UNSET_VALUE
         @ip_resolver        = nil if @ip_resolver == UNSET_VALUE
+        @ipv6_resolver      = nil if @ipv6_resolver == UNSET_VALUE
 
         @aliases = [ @aliases ].flatten
       end
@@ -55,6 +58,14 @@ module VagrantPlugins
           errors << I18n.t('vagrant_hostmanager.config.not_a_proc', {
             :config_key => 'hostmanager.ip_resolver',
             :is_class   => ip_resolver.class.to_s,
+          })
+        end
+
+        if !machine.config.hostmanager.ipv6_resolver.nil? &&
+           !machine.config.hostmanager.ipv6_resolver.kind_of?(Proc)
+          errors << I18n.t('vagrant_hostmanager.config.not_a_proc', {
+            :config_key => 'hostmanager.ipv6_resolver',
+            :is_class   => ipv6_resolver.class.to_s,
           })
         end
 

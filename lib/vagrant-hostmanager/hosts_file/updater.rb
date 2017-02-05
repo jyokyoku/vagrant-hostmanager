@@ -81,8 +81,8 @@ module VagrantPlugins
           old_file_content = file.read
 
           header_pattern = "## vagrant-hostmanager-start.*?\n"
-          footer_pattern = "## vagrant-hostmanager-end\n"
-          pattern = Regexp.new("\n*#{header_pattern}.*?#{footer_pattern}\n*", Regexp::MULTILINE)
+          footer_pattern = "## vagrant-hostmanager-end\n?"
+          pattern = Regexp.new("\n#{header_pattern}.*?#{footer_pattern}", Regexp::MULTILINE)
           new_file_content = old_file_content.gsub(pattern, '')
 
           file.open('w') { |io| io.write(new_file_content) }
@@ -111,11 +111,17 @@ module VagrantPlugins
 
         def get_hosts_file_entry(machine, resolving_machine)
           ip = get_ip_address(machine, resolving_machine)
+          ipv6 = get_ipv6_address(machine, resolving_machine)
           host = machine.config.vm.hostname || machine.name
           aliases = machine.config.hostmanager.aliases
+          entry = '';
           if ip != nil
-            "#{ip}\t#{host}\n" + aliases.map{|a| "#{ip}\t#{a}"}.join("\n") + "\n"
+            entry += "#{ip}\t#{host}\n" + aliases.map{|a| "#{ip}\t#{a}"}.join("\n") + "\n"
           end
+          if ipv6 != nil
+            entry += "#{ipv6}\t#{host}\n" + aliases.map{|a| "#{ipv6}\t#{a}"}.join("\n") + "\n"
+          end
+          entry
         end
 
         def get_ip_address(machine, resolving_machine)
@@ -132,6 +138,13 @@ module VagrantPlugins
               end
             end
             ip || (machine.ssh_info ? machine.ssh_info[:host] : nil)
+          end
+        end
+
+        def get_ipv6_address(machine, resolving_machine)
+          custom_ipv6_resolver = machine.config.hostmanager.ipv6_resolver
+          if custom_ipv6_resolver
+            custom_ipv6_resolver.call(machine, resolving_machine)
           end
         end
 
