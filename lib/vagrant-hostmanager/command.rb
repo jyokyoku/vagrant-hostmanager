@@ -20,7 +20,8 @@ module VagrantPlugins
             options[:provider] = provider.to_sym
           end
 
-          o.on('--cleanhost', 'Clean up the /etc/hosts for host machine.') do
+          o.on('--cleanhost', String,
+            'Clean up the /etc/hosts for host machine.') do
             options[:cleanhost] = true
           end
         end
