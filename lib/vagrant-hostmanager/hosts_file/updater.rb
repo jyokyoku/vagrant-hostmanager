@@ -173,7 +173,7 @@ module VagrantPlugins
 
         def get_new_content(header, footer, body, old_content)
           if body.empty?
-            block = "\n"
+            block = "\n\n" + header + "## ***** no entry *****\n" + footer + "\n"
           else
             block = "\n\n" + header + body + footer + "\n"
           end
