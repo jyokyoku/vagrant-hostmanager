@@ -116,16 +116,17 @@ module VagrantPlugins
         end
 
         def get_hosts_file_entry(machine, resolving_machine)
-          ip = get_ip_address(machine, resolving_machine)
-          ipv6 = get_ipv6_address(machine, resolving_machine)
+          ip_addresses = get_ip_address(machine, resolving_machine)
           host = machine.config.vm.hostname || machine.name
           aliases = machine.config.hostmanager.aliases
           entry = '';
-          if ip != nil
-            entry += "#{ip}\t#{host}\n" + aliases.map{|a| "#{ip}\t#{a}"}.join("\n") + "\n"
-          end
-          if ipv6 != nil
-            entry += "#{ipv6}\t#{host}\n" + aliases.map{|a| "#{ipv6}\t#{a}"}.join("\n") + "\n"
+          if ip_addresses != nil && !ip_addresses.empty?
+            if !ip_addresses.instance_of?(Array)
+              ip_addresses = [ip_addresses]
+            end
+            ip_addresses.each {|ip_address| entry += "#{ip_address}\t#{host}\n" + aliases.map{|a| "#{ip_address}\t#{a}"}.join("\n") + "\n"}
+          else
+            entry += "## ip address is undefined\n"
           end
           entry
         end
@@ -144,13 +145,6 @@ module VagrantPlugins
               end
             end
             ip || (machine.ssh_info ? machine.ssh_info[:host] : nil)
-          end
-        end
-
-        def get_ipv6_address(machine, resolving_machine)
-          custom_ipv6_resolver = machine.config.hostmanager.ipv6_resolver
-          if custom_ipv6_resolver
-            custom_ipv6_resolver.call(machine, resolving_machine)
           end
         end
 
@@ -175,9 +169,7 @@ module VagrantPlugins
         end
 
         def get_new_content(header, footer, body, old_content, line_endings)
-          if body.empty?
-            block = "\n\n" + header + "## ***** no entry *****\n" + footer + "\n"
-          else
+          if !body.empty?
             block = "\n\n" + header + body + footer + "\n"
           end
           # Pattern for finding existing block
